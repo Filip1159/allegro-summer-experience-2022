@@ -3,22 +3,24 @@ package com.example.githubexplorer.service;
 import com.example.githubexplorer.model.Repo;
 import com.example.githubexplorer.model.User;
 import com.example.githubexplorer.model.UserDto;
-import com.example.githubexplorer.util.apiclient.GithubApiClient;
+import com.example.githubexplorer.util.apiclient.IGithubApiClient;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
 import java.util.Map.Entry;
+import java.util.stream.Collectors;
 
 @Service
 @Slf4j
 @RequiredArgsConstructor
 public class GithubService {
-    private final GithubApiClient githubApi;
-    public User getUserByLogin(String login) {
-        UserDto response = githubApi.getUserByLogin(login);
-        List<String> repoNames = githubApi.getReposByLogin(login);
+    private final IGithubApiClient githubApi;
+
+    public User getUserByLogin(String login, int languagesPage, int languagesPerPage) { // page number starts from 1
+        UserDto userDto = githubApi.getUserByLogin(login).orElseThrow();
+        List<String> repoNames = githubApi.getReposByLogin(login).orElseThrow();
         Map<String, Integer> languagesOverall = new HashMap<>();
         for (String repo : repoNames) {
             Map<String, Integer> languages = githubApi.getLanguagesByRepo(login, repo);
@@ -32,16 +34,26 @@ public class GithubService {
                 }
             }
         }
+
+        languagesOverall = languagesOverall.entrySet().stream()
+                .sorted(Map.Entry.comparingByValue(Comparator.reverseOrder()))
+                .skip((long) (languagesPage-1) * languagesPerPage)
+                .limit(languagesPerPage)
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+        System.out.println(languagesPage);
+        log.info(Integer.toString(languagesPerPage));
+        log.info(languagesOverall.toString());
+
         return User.builder()
-                .login(response.getLogin())
-                .name(response.getName())
-                .bio(response.getBio())
+                .login(userDto.getLogin())
+                .name(userDto.getName())
+                .bio(userDto.getBio())
                 .languages(languagesOverall)
                 .build();
     }
 
     public List<Repo> getAllReposByLogin(String login) {
-        List<String> repoNames = githubApi.getReposByLogin(login);
+        List<String> repoNames = githubApi.getReposByLogin(login).orElseThrow();
         List<Repo> result = new ArrayList<>();
         for (String repoName : repoNames) {
             Map<String, Integer> repoLanguages = githubApi.getLanguagesByRepo(login, repoName);
