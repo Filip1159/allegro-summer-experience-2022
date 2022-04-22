@@ -1,30 +1,40 @@
-package com.example.githubexplorer.service;
+package com.example.githubexplorer.controller;
 
 import com.example.githubexplorer.model.Repo;
 import com.example.githubexplorer.model.User;
 import com.example.githubexplorer.model.UserDto;
 import com.example.githubexplorer.util.apiclient.IGithubApiClient;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.runner.RunWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.MockitoJUnitRunner;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
+import org.springframework.test.web.servlet.result.MockMvcResultMatchers;
 
-import java.util.*;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @SpringBootTest
+@AutoConfigureMockMvc
 @RunWith(MockitoJUnitRunner.class)
-class GithubServiceTest {
-    @InjectMocks
-    GithubService githubService;
-
-    @Mock
+class GithubControllerTest {
+    @MockBean
     IGithubApiClient iGithubApiClient;
+    @Autowired
+    private MockMvc mockMvc;
+    @Autowired
+    private ObjectMapper objectMapper;
 
     final List<Repo> johnDoeRepos = List.of(
             new Repo("repo1", Map.of("Python", 100)),
@@ -90,72 +100,13 @@ class GithubServiceTest {
     }
 
     @Test
-    void shouldReturnJohnDoeDetailsAndLanguages() {
-        User user = githubService.getUserByLogin("john-doe", 1, 20);
-        User expectedUser = User.builder()
-                .login("john-doe")
-                .name("John Doe")
-                .bio("Fake user account created by mockito")
-                .languages(userLanguages).build();
-        Assertions.assertEquals(expectedUser, user);
+    void shouldGetJohnDoeWithAllLanguages() throws Exception {
+        MvcResult mvcResult = mockMvc.perform(MockMvcRequestBuilders.get("/user/john-doe"))
+                .andExpect(MockMvcResultMatchers.status().is(200))
+                .andReturn();
+        User user = objectMapper.readValue(mvcResult.getResponse().getContentAsString(), User.class);
+        Assertions.assertEquals("john-doe", user.getLogin());
+        Assertions.assertEquals("John Doe", user.getName());
+        Assertions.assertEquals(johnDoe.getBio(), user.getBio());
     }
-
-    @Test
-    void shouldReturnJohnDoeDetailsAndLanguagesWithPaging() {
-        User user = githubService.getUserByLogin("john-doe", 1, 5);
-        Map<String, Integer> expectedLanguages = Map.of(
-                "JavaScript", 490,
-                "Java", 460,
-                "TypeScript", 305,
-                "C++", 200,
-                "Scala", 170);
-        User expectedUser = User.builder()
-                .login("john-doe")
-                .name("John Doe")
-                .bio("Fake user account created by mockito")
-                .languages(expectedLanguages).build();
-        Assertions.assertEquals(expectedUser, user);
-
-        user = githubService.getUserByLogin("john-doe", 2, 3);
-        expectedLanguages = Map.of(
-                "C++", 200,
-                "Scala", 170,
-                "C", 150);
-        expectedUser = User.builder()
-                .login("john-doe")
-                .name("John Doe")
-                .bio("Fake user account created by mockito")
-                .languages(expectedLanguages).build();
-        Assertions.assertEquals(expectedUser, user);
-
-        user = githubService.getUserByLogin("john-doe", 3, 4);
-        expectedLanguages = Map.of(
-                "Python", 100,
-                "Groovy", 50);
-        expectedUser = User.builder()
-                .login("john-doe")
-                .name("John Doe")
-                .bio("Fake user account created by mockito")
-                .languages(expectedLanguages).build();
-        Assertions.assertEquals(expectedUser, user);
-    }
-
-    @Test
-    void shouldThrowWhenIllegalPagingDetails() {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> githubService.getUserByLogin("john-doe", 0, 2));
-        Assertions.assertThrows(IllegalArgumentException.class, () -> githubService.getUserByLogin("john-doe", 3, -1));
-    }
-
-    @Test
-    void shouldThrowWhenLoginDoesNotExist() {
-        Assertions.assertThrows(NoSuchElementException.class, () -> githubService.getUserByLogin("abc", 1, 1));
-        Assertions.assertThrows(NoSuchElementException.class, () -> githubService.getAllReposByLogin("xyz", 1, 1));
-    }
-
-    @Test
-    void shouldFetchAllReposByLogin() {
-        List<Repo> fetchedRepos = githubService.getAllReposByLogin("john-doe", 1, 10);
-        Assertions.assertEquals(johnDoeRepos, fetchedRepos);
-    }
-
 }

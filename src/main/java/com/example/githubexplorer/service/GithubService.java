@@ -52,8 +52,12 @@ public class GithubService {
                 .build();
     }
 
-    public List<Repo> getAllReposByLogin(String login) {
+    public List<Repo> getAllReposByLogin(String login, int page, int pageSize) {
         List<String> repoNames = githubApi.getReposByLogin(login).orElseThrow();
+        repoNames = repoNames.stream()
+                .skip((long) (page-1) * pageSize)
+                .limit(pageSize)
+                .collect(Collectors.toList());
         List<Repo> result = new ArrayList<>();
         for (String repoName : repoNames) {
             Map<String, Integer> repoLanguages = githubApi.getLanguagesByRepo(login, repoName);

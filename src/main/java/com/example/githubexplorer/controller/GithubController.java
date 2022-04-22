@@ -26,7 +26,11 @@ public class GithubController {
     }
 
     @GetMapping("/repos/{login}")
-    public List<Repo> getAllReposByLogin(@PathVariable String login) {
-        return githubService.getAllReposByLogin(login);
+    public List<Repo> getAllReposByLogin(@PathVariable String login,
+                                         @RequestParam(required = false) Integer page,
+                                         @RequestParam(required = false) Integer pageSize) {
+        if (page == null) page = 1;
+        if (pageSize == null) pageSize = 10;
+        return githubService.getAllReposByLogin(login, page, pageSize);
     }
 }
