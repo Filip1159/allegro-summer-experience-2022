@@ -4,10 +4,8 @@ import com.example.githubexplorer.model.Repo;
 import com.example.githubexplorer.model.User;
 import com.example.githubexplorer.service.GithubService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.http.HttpHeaders;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -15,6 +13,11 @@ import java.util.List;
 @RequiredArgsConstructor
 public class GithubController {
     private final GithubService githubService;
+
+    @GetMapping("/login")
+    public void login(@RequestHeader(HttpHeaders.AUTHORIZATION) String token) {
+        githubService.login(token);
+    }
 
     @GetMapping("/user/{login}")
     public User getUser(@PathVariable String login,

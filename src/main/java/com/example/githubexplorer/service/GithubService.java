@@ -18,6 +18,10 @@ import java.util.stream.Collectors;
 public class GithubService {
     private final IGithubApiClient githubApi;
 
+    public void login(String token) {
+        githubApi.login(token);
+    }
+
     public User getUserByLogin(String login, int languagesPage, int languagesPerPage) { // page number starts from 1
         UserDto userDto = githubApi.getUserByLogin(login).orElseThrow();
         List<String> repoNames = githubApi.getReposByLogin(login).orElseThrow();

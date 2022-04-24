@@ -7,6 +7,8 @@ import java.util.Map;
 import java.util.Optional;
 
 public interface IGithubApiClient {
+    void login(String token);
+    void logout();
     Optional<UserDto> getUserByLogin(String login);
     Map<String, Integer> getLanguagesByRepo(String login, String repoName);
     Optional<List<String>> getReposByLogin(String login);
