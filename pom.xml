@@ -12,6 +12,7 @@
     <artifactId>GithubExplorer</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <name>GithubExplorer</name>
+    <packaging>jar</packaging>
     <description>GithubExplorer</description>
     <properties>
         <java.version>11</java.version>
@@ -58,6 +59,10 @@
             <artifactId>okhttp</artifactId>
             <version>4.9.3</version>
             <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
         </dependency>
     </dependencies>
 

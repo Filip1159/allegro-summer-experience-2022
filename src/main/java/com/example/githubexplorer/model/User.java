@@ -1,8 +1,6 @@
 package com.example.githubexplorer.model;
 
 import lombok.*;
-import org.jetbrains.annotations.Contract;
-import org.jetbrains.annotations.NotNull;
 
 import java.util.Comparator;
 import java.util.HashMap;
@@ -45,9 +43,8 @@ public class User {
                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
     }
 
-    @NotNull
-    @Contract("_ -> new")
-    public static User of(@NotNull UserDto userDto) {
+    @NonNull
+    public static User of(@NonNull UserDto userDto) {
         return new User(userDto.getLogin(), userDto.getName(), userDto.getBio());
     }
 }

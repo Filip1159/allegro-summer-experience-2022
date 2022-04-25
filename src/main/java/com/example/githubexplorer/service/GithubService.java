@@ -7,10 +7,11 @@ import com.example.githubexplorer.model.UserDto;
 import com.example.githubexplorer.util.apiclient.IGithubApiClient;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
-import org.jetbrains.annotations.NotNull;
 import org.springframework.stereotype.Service;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
 
 @Service
@@ -51,8 +52,8 @@ public class GithubService {
         githubApi.logout();
     }
 
-    @NotNull
-    private List<RepoDto> getAllRepoDtos(@NotNull UserDto userDto) {
+    @NonNull
+    private List<RepoDto> getAllRepoDtos(@NonNull UserDto userDto) {
         List<RepoDto> repoNames = new ArrayList<>();
         for (int i=0; i<userDto.getPublicRepos(); i+=100) {
             RepoDto[] fetchedRepos = githubApi.getReposPage(userDto.getLogin(), i/100+1, 100).orElseThrow();
@@ -61,8 +62,8 @@ public class GithubService {
         return repoNames;
     }
 
-    @NotNull
-    private User addRepos(UserDto userDto, @NonNull List<RepoDto> repoDtos) {
+    @NonNull
+    private User addRepos(@NonNull UserDto userDto, @NonNull List<RepoDto> repoDtos) {
         User user = User.of(userDto);
         for (RepoDto repoDto : repoDtos) {
             Map<String, Integer> languages = githubApi.getLanguages(user.getLogin(), repoDto.getName());
