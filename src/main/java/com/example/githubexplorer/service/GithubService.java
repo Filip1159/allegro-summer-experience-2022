@@ -1,70 +1,74 @@
 package com.example.githubexplorer.service;
 
 import com.example.githubexplorer.model.Repo;
+import com.example.githubexplorer.model.RepoDto;
 import com.example.githubexplorer.model.User;
 import com.example.githubexplorer.model.UserDto;
 import com.example.githubexplorer.util.apiclient.IGithubApiClient;
+import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
+import org.jetbrains.annotations.NotNull;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
 import java.util.Map.Entry;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class GithubService {
     private final IGithubApiClient githubApi;
 
+    public User getUser(String login, int languagesPage, int languagesPerPage) {
+        if (languagesPage < 1)
+            throw new IllegalArgumentException("Number of languages per page positive, provided: " + languagesPage);
+        UserDto userDto = githubApi.getUser(login).orElseThrow();
+        List<RepoDto> repoDtos = getAllRepoDtos(userDto);
+        User user = addRepos(userDto, repoDtos);
+        if (languagesPerPage >= 0)
+            user.spliceLanguagesPage(languagesPage, languagesPerPage);
+        return user;
+    }
+
+    public List<Repo> getReposPage(String login, int page, int pageSize) {
+        RepoDto[] repoDtos = githubApi.getReposPage(login, page, pageSize).orElseThrow();
+        List<Repo> result = new ArrayList<>();
+        for (RepoDto repoDto : repoDtos) {
+            Map<String, Integer> repoLanguages = githubApi.getLanguages(login, repoDto.getName());
+            result.add(new Repo(repoDto.getName(), repoLanguages));
+        }
+        return result;
+    }
+
+    public User getUser(String login) {
+        return getUser(login, 1, -1);
+    }
+
     public void login(String token) {
         githubApi.login(token);
     }
 
-    public User getUserByLogin(String login, int languagesPage, int languagesPerPage) { // page number starts from 1
-        UserDto userDto = githubApi.getUserByLogin(login).orElseThrow();
-        List<String> repoNames = new ArrayList<>(userDto.getPublicRepos());
-        for (int i=0; i<userDto.getPublicRepos(); i+=100) {
-            repoNames.addAll(githubApi.getReposByLogin(login, i/100+1, 100).orElseThrow());
-        }
-        Map<String, Integer> languagesOverall = new HashMap<>();
-        for (String repo : repoNames) {
-            Map<String, Integer> languages = githubApi.getLanguagesByRepo(login, repo);
-            Set<Entry<String, Integer>> languagesEntrySet = languages.entrySet();
-            for (Entry<String, Integer> entry : languagesEntrySet) {
-                if (languagesOverall.containsKey(entry.getKey())) {
-                    int currentValue = languagesOverall.get(entry.getKey());
-                    languagesOverall.replace(entry.getKey(), currentValue + entry.getValue());
-                } else {
-                    languagesOverall.put(entry.getKey(), entry.getValue());
-                }
-            }
-        }
-
-        languagesOverall = languagesOverall.entrySet().stream()
-                .sorted(Map.Entry.comparingByValue(Comparator.reverseOrder()))
-                .skip((long) (languagesPage-1) * languagesPerPage)
-                .limit(languagesPerPage)
-                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
-
-        return User.builder()
-                .login(userDto.getLogin())
-                .name(userDto.getName())
-                .bio(userDto.getBio())
-                .languages(languagesOverall)
-                .build();
+    public void logout() {
+        githubApi.logout();
     }
 
-    public List<Repo> getAllReposByLogin(String login, int page, int pageSize) {
-        List<String> repoNames = githubApi.getReposByLogin(login, page, pageSize).orElseThrow();
-        List<Repo> result = new ArrayList<>();
-        for (String repoName : repoNames) {
-            Map<String, Integer> repoLanguages = githubApi.getLanguagesByRepo(login, repoName);
-            Repo repo = Repo.builder()
-                    .name(repoName)
-                    .languages(repoLanguages)
-                    .build();
-            result.add(repo);
+    @NotNull
+    private List<RepoDto> getAllRepoDtos(@NotNull UserDto userDto) {
+        List<RepoDto> repoNames = new ArrayList<>();
+        for (int i=0; i<userDto.getPublicRepos(); i+=100) {
+            RepoDto[] fetchedRepos = githubApi.getReposPage(userDto.getLogin(), i/100+1, 100).orElseThrow();
+            repoNames.addAll(List.of(fetchedRepos));
         }
-        return result;
+        return repoNames;
+    }
+
+    @NotNull
+    private User addRepos(UserDto userDto, @NonNull List<RepoDto> repoDtos) {
+        User user = User.of(userDto);
+        for (RepoDto repoDto : repoDtos) {
+            Map<String, Integer> languages = githubApi.getLanguages(user.getLogin(), repoDto.getName());
+            for (Entry<String, Integer> entry : languages.entrySet())
+                user.addNewLanguageBytes(entry.getKey(), entry.getValue());
+        }
+        return user;
     }
 }

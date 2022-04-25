@@ -2,6 +2,7 @@ package com.example.githubexplorer.util.apiclient;
 
 import com.example.githubexplorer.model.RepoDto;
 import com.example.githubexplorer.model.UserDto;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -10,75 +11,85 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.context.annotation.SessionScope;
 import org.springframework.web.reactive.function.client.WebClient;
 
-import java.util.*;
-import java.util.stream.Collectors;
+import java.util.Map;
+import java.util.Optional;
 
 @Component
 @SessionScope
 public class GithubApiClient implements IGithubApiClient {
-    @Value("${api.baseUrl}")
-    private String baseUrl;
-    WebClient client = WebClient.builder()
-            .baseUrl(baseUrl)
-            .build();
+    private final String baseUrl;
+    private WebClient client;
 
-    @Override
-    public void login(String token) {
-        client = WebClient.builder()
-                .defaultHeader(HttpHeaders.AUTHORIZATION, token)
-                .baseUrl(baseUrl)
-                .build();
-    }
-
-    @Override
-    public void logout() {
+    @Autowired
+    public GithubApiClient(@Value("${api.baseUrl}") String baseUrl) {
+        this.baseUrl = baseUrl;
         client = WebClient.builder()
                 .baseUrl(baseUrl)
                 .build();
     }
 
     @Override
-    public Optional<UserDto> getUserByLogin(String login) {
+    public Optional<UserDto> getUser(String login) {
         UserDto fetchedUser = client.get()
-                .uri("https://api.github.com/users/{login}", login)
+                .uri(uriBuilder -> uriBuilder.path("users/{login}").build(login))
                 .retrieve()
                 .bodyToMono(UserDto.class).block();
         return Optional.ofNullable(fetchedUser);
     }
 
     @Override
-    @SuppressWarnings("unchecked")
-    public Map<String, Integer> getLanguagesByRepo(String login, String repoName) {
+    public boolean doesLoginExist(String login) {
         ResponseEntity<Void> responseForUser = client.get()
-                .uri("https://api.github.com/users/{login}", login)
+                .uri(uriBuilder -> uriBuilder.path("users/{login}").build(login))
                 .retrieve()
                 .toBodilessEntity().block();
-        if (responseForUser == null || responseForUser.getStatusCode().equals(HttpStatus.NOT_FOUND))
-            throw new NoSuchElementException("Given login (" + login + ") not found");
+        if (responseForUser == null)
+            throw new NullPointerException(String.format("Request for user %s ended with null", login));
+        return responseForUser.getStatusCode().equals(HttpStatus.NOT_FOUND);
+    }
+
+    @Override
+    public boolean doesRepoExist(String login, String repoName) {
         ResponseEntity<Void> responseForRepo = client.get()
-                .uri("https://api.github.com/repos/{login}/{repoName}", login, repoName)
+                .uri(uriBuilder -> uriBuilder.path("repos/{login}/{repoName}").build(login, repoName))
                 .retrieve()
                 .toBodilessEntity().block();
-        if (responseForRepo == null || responseForRepo.getStatusCode().equals(HttpStatus.NOT_FOUND))
-            throw new NoSuchElementException("Given repo (" + repoName + ") not found");
+        if (responseForRepo == null)
+            throw new NullPointerException(String.format("Request for repo %s/%s ended with null", login, repoName));
+        return responseForRepo.getStatusCode().equals(HttpStatus.NOT_FOUND);
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public Map<String, Integer> getLanguages(String login, String repoName) {
         return client.get()
-                .uri("https://api.github.com/repos/{login}/{repoName}/languages", login, repoName)
+                .uri(uriBuilder -> uriBuilder.path("repos/{login}/{repoName}/languages").build(login, repoName))
                 .retrieve()
                 .bodyToMono(Map.class).block();
     }
 
     @Override
-    public Optional<List<String>> getReposByLogin(String login, int page, int pageSize) {
+    public Optional<RepoDto[]> getReposPage(String login, int page, int pageSize) {
         if (pageSize > 100)
             throw new IllegalArgumentException("Github api will not handle page size bigger than 100");
         RepoDto[] fetchedRepos = client.get()
-                .uri("https://api.github.com/users/{login}/repos?page={page}&per_page={pageSize}", login, page, pageSize)
+                .uri(uriBuilder -> uriBuilder
+                        .path("users/{login}/repos")
+                        .queryParam("page", "{page}")
+                        .queryParam("per_page", "{pageSize}")
+                        .build(login, page, pageSize))
                 .retrieve()
                 .bodyToMono(RepoDto[].class).block();
-        if (fetchedRepos == null) return Optional.empty();
-        List<String> repoNames = Arrays.stream(fetchedRepos)
-                .map(RepoDto::getName)
-                .collect(Collectors.toList());
-        return Optional.of(repoNames);
+        return Optional.ofNullable(fetchedRepos);
+    }
+
+    @Override
+    public void login(String token) {
+        client = WebClient.builder().defaultHeader(HttpHeaders.AUTHORIZATION, token).baseUrl(baseUrl).build();
+    }
+
+    @Override
+    public void logout() {
+        client = WebClient.builder().baseUrl(baseUrl).build();
     }
 }
