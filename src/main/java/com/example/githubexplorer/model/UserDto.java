@@ -11,4 +11,5 @@ public class UserDto {
     private String login;
     private String name;
     private String bio;
+    private int publicRepos;
 }

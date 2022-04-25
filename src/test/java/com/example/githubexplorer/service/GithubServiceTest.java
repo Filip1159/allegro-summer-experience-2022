@@ -17,6 +17,9 @@ import org.springframework.boot.test.context.SpringBootTest;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
+
 @SpringBootTest
 @RunWith(MockitoJUnitRunner.class)
 class GithubServiceTest {
@@ -34,8 +37,7 @@ class GithubServiceTest {
             new Repo("repo5", Map.of("Java", 160)),
             new Repo("repo6", Map.of("HTML", 100, "CSS", 130, "JavaScript", 380)),
             new Repo("repo7", Map.of("TypeScript", 155)),
-            new Repo("repo8", Map.of("Scala", 120))
-    );
+            new Repo("repo8", Map.of("Scala", 120)));
 
     final List<String> repoNames = johnDoeRepos.stream()
             .map(Repo::getName)
@@ -53,15 +55,23 @@ class GithubServiceTest {
             "Python", 100,
             "Groovy", 50);
 
-    final UserDto johnDoe = new UserDto("john-doe", "John Doe", "Fake user account created by mockito");
+    final UserDto johnDoe = new UserDto("john-doe", "John Doe", "Fake user account created by mockito", 8);
 
     @BeforeEach
     void createMockApi() {
         Mockito.when(iGithubApiClient.getUserByLogin("john-doe")).thenReturn(
                 Optional.of(johnDoe)
         );
-        Mockito.when(iGithubApiClient.getReposByLogin("john-doe")).thenReturn(
-                Optional.of(repoNames)
+        Mockito.when(iGithubApiClient.getReposByLogin(eq("john-doe"), anyInt(), anyInt())).thenAnswer(invocationOnMock -> {
+                    Object[] args = invocationOnMock.getArguments();
+                    int page = (int) args[1];
+                    int pageSize = (int) args[2];
+                    List<String> repoNamesPage = repoNames.stream()
+                            .skip((long) (page - 1) * pageSize)
+                            .limit(pageSize)
+                            .collect(Collectors.toList());
+                    return Optional.of(repoNamesPage);
+                }
         );
         Mockito.when(iGithubApiClient.getLanguagesByRepo("john-doe", "repo1")).thenReturn(
                 johnDoeRepos.get(0).getLanguages()

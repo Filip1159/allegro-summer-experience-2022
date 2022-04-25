@@ -11,5 +11,5 @@ public interface IGithubApiClient {
     void logout();
     Optional<UserDto> getUserByLogin(String login);
     Map<String, Integer> getLanguagesByRepo(String login, String repoName);
-    Optional<List<String>> getReposByLogin(String login);
+    Optional<List<String>> getReposByLogin(String login, int page, int pageSize);
 }

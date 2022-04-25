@@ -68,9 +68,11 @@ public class GithubApiClient implements IGithubApiClient {
     }
 
     @Override
-    public Optional<List<String>> getReposByLogin(String login) {
+    public Optional<List<String>> getReposByLogin(String login, int page, int pageSize) {
+        if (pageSize > 100)
+            throw new IllegalArgumentException("Github api will not handle page size bigger than 100");
         RepoDto[] fetchedRepos = client.get()
-                .uri("https://api.github.com/users/{login}/repos", login)
+                .uri("https://api.github.com/users/{login}/repos?page={page}&per_page={pageSize}", login, page, pageSize)
                 .retrieve()
                 .bodyToMono(RepoDto[].class).block();
         if (fetchedRepos == null) return Optional.empty();

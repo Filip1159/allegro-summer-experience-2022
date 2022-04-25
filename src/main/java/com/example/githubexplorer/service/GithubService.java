@@ -5,7 +5,6 @@ import com.example.githubexplorer.model.User;
 import com.example.githubexplorer.model.UserDto;
 import com.example.githubexplorer.util.apiclient.IGithubApiClient;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
@@ -13,7 +12,6 @@ import java.util.Map.Entry;
 import java.util.stream.Collectors;
 
 @Service
-@Slf4j
 @RequiredArgsConstructor
 public class GithubService {
     private final IGithubApiClient githubApi;
@@ -24,7 +22,10 @@ public class GithubService {
 
     public User getUserByLogin(String login, int languagesPage, int languagesPerPage) { // page number starts from 1
         UserDto userDto = githubApi.getUserByLogin(login).orElseThrow();
-        List<String> repoNames = githubApi.getReposByLogin(login).orElseThrow();
+        List<String> repoNames = new ArrayList<>(userDto.getPublicRepos());
+        for (int i=0; i<userDto.getPublicRepos(); i+=100) {
+            repoNames.addAll(githubApi.getReposByLogin(login, i/100+1, 100).orElseThrow());
+        }
         Map<String, Integer> languagesOverall = new HashMap<>();
         for (String repo : repoNames) {
             Map<String, Integer> languages = githubApi.getLanguagesByRepo(login, repo);
@@ -44,9 +45,6 @@ public class GithubService {
                 .skip((long) (languagesPage-1) * languagesPerPage)
                 .limit(languagesPerPage)
                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
-        System.out.println(languagesPage);
-        log.info(Integer.toString(languagesPerPage));
-        log.info(languagesOverall.toString());
 
         return User.builder()
                 .login(userDto.getLogin())
@@ -57,11 +55,7 @@ public class GithubService {
     }
 
     public List<Repo> getAllReposByLogin(String login, int page, int pageSize) {
-        List<String> repoNames = githubApi.getReposByLogin(login).orElseThrow();
-        repoNames = repoNames.stream()
-                .skip((long) (page-1) * pageSize)
-                .limit(pageSize)
-                .collect(Collectors.toList());
+        List<String> repoNames = githubApi.getReposByLogin(login, page, pageSize).orElseThrow();
         List<Repo> result = new ArrayList<>();
         for (String repoName : repoNames) {
             Map<String, Integer> repoLanguages = githubApi.getLanguagesByRepo(login, repoName);

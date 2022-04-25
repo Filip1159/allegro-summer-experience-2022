@@ -63,14 +63,14 @@ class GithubControllerTest {
             "Python", 100,
             "Groovy", 50);
 
-    final UserDto johnDoe = new UserDto("john-doe", "John Doe", "Fake user account created by mockito");
+    final UserDto johnDoe = new UserDto("john-doe", "John Doe", "Fake user account created by mockito", 8);
 
     @BeforeEach
     void createMockApi() {
         Mockito.when(iGithubApiClient.getUserByLogin("john-doe")).thenReturn(
                 Optional.of(johnDoe)
         );
-        Mockito.when(iGithubApiClient.getReposByLogin("john-doe")).thenReturn(
+        Mockito.when(iGithubApiClient.getReposByLogin("john-doe", 1, 8)).thenReturn(
                 Optional.of(repoNames)
         );
         Mockito.when(iGithubApiClient.getLanguagesByRepo("john-doe", "repo1")).thenReturn(
